@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>贪吃龙</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #1e1e1e;
+      color: white;
+      min-height: 100vh;
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    /* 标题 - 使用 food.png 作为背景图标 */
+    h1 {
+      margin: 15px 0;
+      font-size: 1.3rem;
+      text-align: center;
+      color: #f7f7f7;
+      padding-left: 30px;
+      background-image: url('/images/food.png');
+      background-repeat: no-repeat;
+      background-size: 24px 24px;
+      background-position: left center;
+    }
+
+    /* 控制按钮 */
+    #gameControls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      justify-content: center;
+      flex-wrap: wrap; /* 按钮过多时换行 */
+    }
+    .btn {
+      padding: 6px 12px;
+      font-size: 14px;
+      background: #444;
+      color: white;
+      border: 1px solid #666;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    /* 游戏容器 */
+    #gameContainer {
+      width: 100%;
+      max-width: 350px;
+      margin: 0 auto;
+      position: relative;
+    }
+    canvas {
+      display: block;
+      background: #000;
+      border: 2px solid #444;
+      margin: 0 auto;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+
+    /* 虚拟方向键 - 固定在左下角 */
+    #dPad {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      width: 140px;
+      height: 140px;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    .dpad-btn {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.3);
+      border: 2px solid white;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 20px;
+      pointer-events: auto;
+      user-select: none;
+    }
+    #btnUp    { left: 45px; top: 0; }
+    #btnDown  { left: 45px; bottom: 0; }
+    #btnLeft  { left: 0; top: 45px; }
+    #btnRight { right: 0; top: 45px; }
+
+    p {
+      margin-top: 6px;
+      font-size: 0.85rem;
+      color: #aaa;
+      text-align: center;
+    }
+
+    /* 关于弹窗 */
+    #aboutModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    .modal-content {
+      background: #2e2e2e;
+      border: 2px solid #444;
+      border-radius: 8px;
+      padding: 20px;
+      max-width: 300px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .modal-body {
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .modal-body a {
+      color: #4da6ff;
+      text-decoration: none;
+    }
+    .modal-body a:hover {
+      text-decoration: underline;
+    }
+    .section-title {
+      font-weight: bold;
+      margin-top: 10px;
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 标题 -->
+  <h1>贪吃龙</h1>
+
+  <!-- 控制按钮 -->
+  <div id="gameControls">
+    <button class="btn" id="btnStart">开始</button>
+    <button class="btn" id="btnPause">暂停</button>
+    <button class="btn" id="btnRestart">重开</button>
+    <button class="btn" id="btnAbout">关于</button> <!-- 新增按钮 -->
+  </div>
+
+  <!-- 游戏画面 -->
+  <div id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+  </div>
+
+  <!-- 虚拟方向键（左下角） -->
+  <div id="dPad">
+    <div class="dpad-btn" id="btnUp">↑</div>
+    <div class="dpad-btn" id="btnDown">↓</div>
+    <div class="dpad-btn" id="btnLeft">←</div>
+    <div class="dpad-btn" id="btnRight">→</div>
+  </div>
+
+  <!-- 提示文字 -->
+  <p>使用方向键或屏幕按钮控制</p>
+
+  <!-- 关于弹窗 -->
+  <div id="aboutModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">关于</div>
+        <button class="close-btn" id="closeAbout">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="section-title">主播：</div>
+        <div><a href="https://space.bilibili.com/435243735" target="_blank">礼墨sumi的主页</a></div>
+        <div><a href="https://live.bilibili.com/23222837" target="_blank">礼墨sumi的直播间</a></div>
+        
+        <div class="section-title">图片素材：</div>
+        <div><a href="https://www.bilibili.com/opus/1125372042500112388" target="_blank">很高的loooooooong</a></div>
+        <div><a href="https://www.bilibili.com/opus/1123052618462003224" target="_blank">龙秘宝X筷子</a></div>
+        
+        <div class="section-title">代码编写&网站运营者：</div>
+        <div><a href="https://space.bilibili.com/6175388" target="_blank">灰原键的主页</a></div>
+	<div class="section-title">其他网站：</div>
+        <div><a href="https://niaohan.top" target="_blank">灰原键的导航页</a></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const GRID_SIZE = 20;
+    let cellSize = 0;
+    let gameLoop = null;
+
+    // 图片
+    const imgHead = new Image();
+    const imgBody = new Image();
+    const imgTail = new Image();
+    const imgFood = new Image();
+
+    imgHead.src = '/images/head.png';
+    imgBody.src = '/images/body.png';
+    imgTail.src = '/images/tail.png';
+    imgFood.src = '/images/food.png';
+
+    // 游戏状态
+    let snake = [];
+    let foods = [];
+    let direction = 'right';
+    let nextDirection = 'right';
+    let isPaused = false;
+    let score = 0;
+
+    // 初始化 Canvas
+    function resizeCanvas() {
+      const maxWidth = Math.min(window.innerWidth - 20, window.innerHeight - 300);
+      cellSize = Math.floor(maxWidth / GRID_SIZE);
+      const displaySize = cellSize * GRID_SIZE;
+
+      canvas.style.width = displaySize + 'px';
+      canvas.style.height = displaySize + 'px';
+
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = displaySize * dpr;
+      canvas.height = displaySize * dpr;
+      ctx.scale(dpr, dpr);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    // 生成食物（多个）
+    function generateFood() {
+      let newFood;
+      do {
+        newFood = {
+          x: Math.floor(Math.random() * GRID_SIZE),
+          y: Math.floor(Math.random() * GRID_SIZE)
+        };
+      } while (snake.some(segment => segment.x === newFood.x && segment.y === newFood.y) ||
+               foods.some(f => f.x === newFood.x && f.y === newFood.y));
+      return newFood;
+    }
+
+    // 初始化游戏
+    function initGame() {
+      snake = [
+        { x: 10, y: 10 },
+        { x: 9, y: 10 },
+        { x: 8, y: 10 }
+      ];
+      direction = 'right';
+      nextDirection = 'right';
+      score = 0;
+      foods = [];
+      for (let i = 0; i < 3; i++) {
+        foods.push(generateFood());
+      }
+    }
+
+    // 绘制旋转图像
+    function drawRotatedImage(image, x, y, angle) {
+      if (!image.complete) return;
+      ctx.save();
+      ctx.translate(x + cellSize / 2, y + cellSize / 2);
+      ctx.rotate(angle);
+      ctx.drawImage(image, -cellSize / 2, -cellSize / 2, cellSize, cellSize);
+      ctx.restore();
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 绘制食物
+      foods.forEach(food => {
+        ctx.drawImage(imgFood, food.x * cellSize, food.y * cellSize, cellSize, cellSize);
+      });
+
+      // 绘制蛇
+      const len = snake.length;
+      let angle = 0;
+      switch (direction) {
+        case 'up':    angle = 0; break;
+        case 'right': angle = Math.PI / 2; break;
+        case 'down':  angle = Math.PI; break;
+        case 'left':  angle = -Math.PI / 2; break;
+      }
+
+      snake.forEach((segment, index) => {
+        const x = segment.x * cellSize;
+        const y = segment.y * cellSize;
+
+        if (index === 0) {
+          drawRotatedImage(imgHead, x, y, angle);
+        } else if (index === len - 1 && len >= 3) {
+          drawRotatedImage(imgTail, x, y, angle);
+        } else {
+          drawRotatedImage(imgBody, x, y, angle);
+        }
+      });
+    }
+
+    // 游戏逻辑
+    function update() {
+      if (isPaused) return;
+
+      direction = nextDirection;
+
+      const head = { ...snake[0] };
+      switch (direction) {
+        case 'up':    head.y--; break;
+        case 'down':  head.y++; break;
+        case 'left':  head.x--; break;
+        case 'right': head.x++; break;
+      }
+
+      // 穿墙
+      if (head.x < 0) head.x = GRID_SIZE - 1;
+      if (head.x >= GRID_SIZE) head.x = 0;
+      if (head.y < 0) head.y = GRID_SIZE - 1;
+      if (head.y >= GRID_SIZE) head.y = 0;
+
+      // 自身碰撞
+      if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+        alert('游戏结束！得分：' + score);
+        resetGame();
+        return;
+      }
+
+      snake.unshift(head);
+
+      // 吃食物
+      const eaten = foods.findIndex(food => food.x === head.x && food.y === head.y);
+      if (eaten !== -1) {
+        score++;
+        foods.splice(eaten, 1);
+        foods.push(generateFood());
+      } else {
+        snake.pop();
+      }
+
+      render();
+    }
+
+    function resetGame() {
+      if (gameLoop) clearInterval(gameLoop);
+      initGame();
+      render();
+    }
+
+    function startGame() {
+      if (gameLoop) clearInterval(gameLoop);
+      initGame();
+      gameLoop = setInterval(update, 150);
+      render();
+    }
+
+    // 按钮事件
+    document.getElementById('btnStart').onclick = startGame;
+    document.getElementById('btnPause').onclick = () => {
+      isPaused = !isPaused;
+      document.getElementById('btnPause').textContent = isPaused ? '继续' : '暂停';
+    };
+    document.getElementById('btnRestart').onclick = resetGame;
+
+    // 关于按钮
+    const aboutModal = document.getElementById('aboutModal');
+    const closeAbout = document.getElementById('closeAbout');
+    
+    document.getElementById('btnAbout').onclick = () => {
+      aboutModal.style.display = 'flex';
+    };
+    
+    closeAbout.onclick = () => {
+      aboutModal.style.display = 'none';
+    };
+    
+    // 点击遮罩关闭
+    aboutModal.onclick = (e) => {
+      if (e.target === aboutModal) {
+        aboutModal.style.display = 'none';
+      }
+    };
+
+    // 键盘控制
+    document.addEventListener('keydown', (e) => {
+      if (!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) return;
+      e.preventDefault();
+
+      const keyDir = e.key.replace('Arrow', '').toLowerCase();
+      if ((direction === 'up' && keyDir === 'down') ||
+          (direction === 'down' && keyDir === 'up') ||
+          (direction === 'left' && keyDir === 'right') ||
+          (direction === 'right' && keyDir === 'left')) return;
+
+      nextDirection = keyDir;
+    });
+
+    // 虚拟按钮
+    function bindButton(id, dir) {
+      const btn = document.getElementById(id);
+      const handler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        btn.style.background = 'rgba(255,255,255,0.6)';
+        setTimeout(() => btn.style.background = 'rgba(255,255,255,0.3)', 100);
+
+        if ((direction === 'up' && dir === 'down') ||
+            (direction === 'down' && dir === 'up') ||
+            (direction === 'left' && dir === 'right') ||
+            (direction === 'right' && dir === 'left')) return;
+
+        nextDirection = dir;
+      };
+
+      btn.addEventListener('touchstart', handler, { passive: false });
+      btn.addEventListener('mousedown', handler);
+    }
+
+    ['Up','Down','Left','Right'].forEach(d => bindButton(`btn${d}`, d.toLowerCase()));
+
+    // 启动
+    window.addEventListener('load', () => {
+      resizeCanvas();
+      initGame();
+      render();
+    });
+  </script>
+</body>
+</html>
